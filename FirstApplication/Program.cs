@@ -1,8 +1,10 @@
-using FirstApplication.Models;
+﻿using FirstApplication.Models;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Serilog;
 using Serilog.Enrichers.Span;
 using Serilog.Sinks.Elasticsearch;
-
+using OpenTelemetry.Extensions.Hosting;
 
 //configure Serilog
 Log.Logger = new LoggerConfiguration()
@@ -25,10 +27,27 @@ try
             AutoRegisterTemplateVersion = AutoRegisterTemplateVersion.ESv6
         }).Enrich.WithSpan(); ;
     });
+    
+    // After install Opentelemetry.instruments and opentelemtry.export configure opentelemetry
+    var serviceName = "ObservabilityFirst";
+    var serviceVersion = "1.0.0";
+
+    builder.Services.AddOpenTelemetryTracing(tracerProviderBuilder =>
+    {
+        tracerProviderBuilder
+        .AddConsoleExporter()
+        .AddJaegerExporter()
+        .AddSource(serviceName)
+        .AddResourceBuilder(
+            ResourceBuilder.CreateDefault()
+            .AddService(serviceName: serviceName, serviceVersion: serviceVersion))
+        .AddHttpClientInstrumentation()
+        .AddAspNetCoreInstrumentation()
+        .AddSqlClientInstrumentation();
+    });
 
 
     // Add services to the container.
-
     builder.Services.AddControllers();
     // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
     builder.Services.AddEndpointsApiExplorer();
